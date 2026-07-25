@@ -2,6 +2,7 @@
 # Run this script on a proxmox node to create a VM template from a cloud-init image
 # Docs: pve.proxmox.com/wiki/Cloud-Init_Support
 # Ubuntu ISOs: https://cloud-images.ubuntu.com/
+# Use nano to paste the file contents and save
 
 set -euo pipefail
 

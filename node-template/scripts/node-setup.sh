@@ -5,6 +5,11 @@ log() {
   echo "[node-setup] $1"
 }
 
+# --- Version pins (override via environment) ---
+K8S_VERSION="${K8S_VERSION:-1.36.2}"
+K8S_MINOR="${K8S_VERSION%.*}"
+CNI_VERSION="${CNI_VERSION:-1.9.1}"
+# -----------------------------------------------
 
 if [[ "$UID" -ne 0 ]]; then
   echo "Must be run as root"
@@ -14,7 +19,7 @@ fi
 log "Starting node setup"
 
 log "Disabling swap"
-sed -i '/^[^#].*\s\+swap\s\+/ s/^/# /' /etc/fstab
+sed -i '/^[^#].*\s\+swap\s\+sw\s\+/ s/^/# /' /etc/fstab
 
 log "Loading kernel modules"
 cat > /etc/modules-load.d/k8s.conf <<EOF
@@ -36,7 +41,6 @@ apt autoremove -y
 
 log "Installing base packages"
 apt install -y \
-  apt-transport-https \
   ca-certificates \
   curl \
   gpg \
@@ -59,6 +63,11 @@ log "Creating required directories"
 mkdir -p /etc/kubernetes
 mkdir -p /etc/containerd/
 mkdir -p /opt/cni/bin/
+mkdir -p /etc/apt/keyrings
+
+log "Installing CNI plugins (v${CNI_VERSION})"
+curl -fsSL "https://github.com/containernetworking/plugins/releases/download/v${CNI_VERSION}/cni-plugins-linux-amd64-v${CNI_VERSION}.tgz" \
+  | tar -C /opt/cni/bin -xz
 
 log "Installing containerd"
 apt install -y containerd
@@ -67,52 +76,27 @@ log "Configuring containerd"
 mkdir -p /etc/containerd
 
 cat > /etc/containerd/config.toml <<EOF
-version = 2
-[plugins]
-  [plugins."io.containerd.grpc.v1.cri"]
-    [plugins."io.containerd.grpc.v1.cri".containerd]
-      [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
-        [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
-          runtime_type = "io.containerd.runc.v2"
-          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
-            SystemdCgroup = true
+version = 3
+[plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.runc.options]
+  SystemdCgroup = true
 EOF
 
 systemctl enable containerd
 
 log "Installing Kubernetes packages"
 
-mkdir -p /etc/apt/keyrings
-
 # These commands change based on k8s version
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes.gpg
+curl -fsSL "https://pkgs.k8s.io/core:/stable:/v${K8S_MINOR}/deb/Release.key" \
+  | gpg --dearmor -o /etc/apt/keyrings/kubernetes.gpg
 
 cat > /etc/apt/sources.list.d/kubernetes.list <<EOF
 deb [signed-by=/etc/apt/keyrings/kubernetes.gpg] \
-https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /
+https://pkgs.k8s.io/core:/stable:/v${K8S_MINOR}/deb/ /
 EOF
 
 apt update
 apt install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
-
-log "Installing crictl config"
-cat >/etc/crictl.yaml <<EOF
-runtime-endpoint: unix:///run/containerd/containerd.sock
-image-endpoint: unix:///run/containerd/containerd.sock
-timeout: 10
-debug: false
-EOF
-
-log "Installing multipath tools"
-apt install -y multipath-tools
-
-cat >/etc/multipath.conf <<EOF
-defaults {
-  user_friendly_names yes
-  find_multipaths yes
-}
-EOF
 
 log "Enable services"
 systemctl enable kubelet

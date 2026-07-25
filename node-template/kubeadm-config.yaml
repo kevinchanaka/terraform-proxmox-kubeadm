@@ -1,0 +1,32 @@
+# Kubeadm cluster configuration
+# Refer here for full reference: https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta4/
+# Kubernetes version is substituted at Packer build time via envsubst.
+
+kind: ClusterConfiguration
+apiVersion: kubeadm.k8s.io/v1beta4
+kubernetesVersion: v${K8S_VERSION}
+controlPlaneEndpoint: ""
+etcd:
+  local:
+    extraArgs: []
+apiServer:
+  extraArgs: []
+controllerManager:
+  extraArgs: []
+scheduler:
+  extraArgs: []
+networking:
+  serviceSubnet: 10.96.0.0/16
+  podSubnet: 10.244.0.0/16
+  dnsDomain: cluster.local
+---
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+cgroupDriver: systemd
+imageGCHighThresholdPercent: 80
+imageGCLowThresholdPercent: 70
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+mode: nftables
+metricsBindAddress: "0.0.0.0:10249"

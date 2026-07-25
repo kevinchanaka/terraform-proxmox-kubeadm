@@ -39,6 +39,17 @@ variable "vm_username" {
   description = "Username to provision and use when creating image. Can use the same default user for source VM template"
 }
 
+variable "k8s_version" {
+  type        = string
+  default     = "1.36.2"
+  description = "Kubernetes version to install (full semver, e.g. 1.36.2)"
+}
+
+variable "cni_version" {
+  type        = string
+  default     = "1.9.1"
+  description = "CNI plugins version to install"
+}
 
 source "proxmox-clone" "test-template-clone" {
   clone_vm_id              = var.vm_template_source_id
@@ -67,6 +78,7 @@ source "proxmox-clone" "test-template-clone" {
   # }
 
   full_clone = true
+  task_timeout = "5m"
 
   network_adapters {
     bridge = "vmbr0"
@@ -95,15 +107,38 @@ build {
   ]
 
   provisioner "file" {
-    source = "template-bootstrap.sh"
-    destination = "template-bootstrap.sh"
+    source = "scripts/node-setup.sh"
+    destination = "node-setup.sh"
+  }
+
+  provisioner "file" {
+    source = "scripts/setup-persistent-storage.sh"
+    destination = "setup-persistent-storage.sh"
+  }
+
+  provisioner "file" {
+    source = "cloud-init/99-persist-storage.cfg"
+    destination = "99-persist-storage.cfg"
+  }
+
+  provisioner "file" {
+    source = "kubeadm-config.yaml"
+    destination = "kubeadm-config.yaml"
   }
 
   provisioner "shell" {
     inline = [
-      "mv template-bootstrap.sh /root/template-bootstrap.sh",
-      "cd /root && bash template-bootstrap.sh",
-      "rm template-bootstrap.sh"
+      "export K8S_VERSION=${var.k8s_version}",
+      "export CNI_VERSION=${var.cni_version}",
+      "mv node-setup.sh /root/node-setup.sh",
+      "cd /root && bash node-setup.sh",
+      "rm node-setup.sh",
+      "mv setup-persistent-storage.sh /usr/local/sbin/setup-persistent-storage.sh",
+      "chmod +x /usr/local/sbin/setup-persistent-storage.sh",
+      "mkdir -p /etc/cloud/cloud.cfg.d",
+      "mv 99-persist-storage.cfg /etc/cloud/cloud.cfg.d/99-persist-storage.cfg",
+      "envsubst < kubeadm-config.yaml > /etc/kubernetes/kubeadm-config.yaml",
+      "rm kubeadm-config.yaml"
     ]
     execute_command = "sudo /bin/bash -c '{{ .Vars }} {{ .Path }}'"
   }
