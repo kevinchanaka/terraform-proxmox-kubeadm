@@ -17,9 +17,9 @@ variable "vm_template_id" {
   description = "VM ID of new template"
 }
 
-variable "vm_template_name" {
+variable "vm_template_name_prefix" {
   type        = string
-  description = "Name of new template"
+  description = "Prefix name of new template"
 }
 
 variable "vm_ip_and_network_cidr" {
@@ -51,12 +51,18 @@ variable "cni_version" {
   description = "CNI plugins version to install"
 }
 
-source "proxmox-clone" "test-template-clone" {
+variable "bootstrap_token" {
+  type        = string
+  sensitive   = true
+  description = "Bootstrap token for kubeadm join (set via PKR_VAR_bootstrap_token)"
+}
+
+source "proxmox-clone" "template" {
   clone_vm_id              = var.vm_template_source_id
   vm_id                    = var.vm_template_id
   insecure_skip_tls_verify = true
   node                     = var.pve_node
-  vm_name                  = var.vm_template_name
+  vm_name                  = "${var.vm_template_name_prefix}-k8s-${var.k8s_version}"
 
 
   cores    = 2
@@ -103,43 +109,38 @@ source "proxmox-clone" "test-template-clone" {
 
 build {
   sources = [
-    "source.proxmox-clone.test-template-clone"
+    "source.proxmox-clone.template"
   ]
 
   provisioner "file" {
     source = "scripts/node-setup.sh"
-    destination = "node-setup.sh"
+    destination = "/tmp/node-setup.sh"
   }
 
   provisioner "file" {
-    source = "scripts/setup-persistent-storage.sh"
-    destination = "setup-persistent-storage.sh"
+    source = "scripts/node-runtime.sh"
+    destination = "/tmp/node-runtime.sh"
   }
 
   provisioner "file" {
-    source = "cloud-init/99-persist-storage.cfg"
-    destination = "99-persist-storage.cfg"
-  }
-
-  provisioner "file" {
-    source = "kubeadm-config.yaml"
-    destination = "kubeadm-config.yaml"
+    source = "config/99-node-runtime.cfg"
+    destination = "/tmp/99-node-runtime.cfg"
   }
 
   provisioner "shell" {
-    inline = [
-      "export K8S_VERSION=${var.k8s_version}",
-      "export CNI_VERSION=${var.cni_version}",
-      "mv node-setup.sh /root/node-setup.sh",
-      "cd /root && bash node-setup.sh",
-      "rm node-setup.sh",
-      "mv setup-persistent-storage.sh /usr/local/sbin/setup-persistent-storage.sh",
-      "chmod +x /usr/local/sbin/setup-persistent-storage.sh",
-      "mkdir -p /etc/cloud/cloud.cfg.d",
-      "mv 99-persist-storage.cfg /etc/cloud/cloud.cfg.d/99-persist-storage.cfg",
-      "envsubst < kubeadm-config.yaml > /etc/kubernetes/kubeadm-config.yaml",
-      "rm kubeadm-config.yaml"
+    environment_vars = [
+      "K8S_VERSION=${var.k8s_version}",
+      "CNI_VERSION=${var.cni_version}",
+      "KUBEADM_CONFIG_B64=${base64encode(templatefile("kubeadm-config.yaml", { K8S_VERSION = var.k8s_version }))}",
     ]
-    execute_command = "sudo /bin/bash -c '{{ .Vars }} {{ .Path }}'"
+    inline = [
+      "echo \"$KUBEADM_CONFIG_B64\" | base64 -d > /root/kubeadm-config.yaml",
+      "mv /tmp/node-setup.sh /root/",
+      "mv /tmp/node-runtime.sh /root/",
+      "mkdir -p /etc/cloud/cloud.cfg.d",
+      "mv /tmp/99-node-runtime.cfg /etc/cloud/cloud.cfg.d",
+      "cd /root && bash node-setup.sh",
+    ]
+    execute_command = "sudo -E /bin/bash -c '{{ .Vars }} {{ .Path }}'"
   }
 }

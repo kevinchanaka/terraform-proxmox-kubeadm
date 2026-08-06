@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log() {
-  echo "[node-setup] $1"
-}
+log() { echo "[node-runtime] $1"; }
+err_exit() { echo "[node-runtime] ERROR: $1"; exit 1; }
 
-# --- Version pins (override via environment) ---
-K8S_VERSION="${K8S_VERSION:-1.36.2}"
+if [[ "$UID" -ne 0 ]]; then
+  err_exit "Must be run as root"
+fi
+
 K8S_MINOR="${K8S_VERSION%.*}"
-CNI_VERSION="${CNI_VERSION:-1.9.1}"
-# -----------------------------------------------
 
 if [[ "$UID" -ne 0 ]]; then
   echo "Must be run as root"
@@ -49,7 +48,8 @@ apt install -y \
   lsscsi \
   sg3-utils \
   multipath-tools \
-  scsitools
+  scsitools \
+  qemu-guest-agent
 
 log "Write multipath config"
 cat >/etc/multipath.conf <<EOF
@@ -60,10 +60,11 @@ defaults {
 EOF
 
 log "Creating required directories"
-mkdir -p /etc/kubernetes
+mkdir -p /etc/kubernetes/pki/
 mkdir -p /etc/containerd/
 mkdir -p /opt/cni/bin/
-mkdir -p /etc/apt/keyrings
+mkdir -p /etc/apt/keyrings/
+mkdir -p /var/lib/etcd/
 
 log "Installing CNI plugins (v${CNI_VERSION})"
 curl -fsSL "https://github.com/containernetworking/plugins/releases/download/v${CNI_VERSION}/cni-plugins-linux-amd64-v${CNI_VERSION}.tgz" \
@@ -99,6 +100,5 @@ apt install -y kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl
 
 log "Enable services"
-systemctl enable kubelet
 systemctl enable multipathd
 systemctl enable open-iscsi

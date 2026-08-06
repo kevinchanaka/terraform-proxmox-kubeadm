@@ -1,11 +1,16 @@
 # Kubeadm cluster configuration
 # Refer here for full reference: https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta4/
-# Kubernetes version is substituted at Packer build time via envsubst.
 
+apiVersion: kubeadm.k8s.io/v1beta4
+kind: InitConfiguration
+bootstrapTokens:
+- token: "BOOTSTRAP_TOKEN" # Do not change, set via runtime script
+  ttl: 0
+---
 kind: ClusterConfiguration
 apiVersion: kubeadm.k8s.io/v1beta4
-kubernetesVersion: v${K8S_VERSION}
-controlPlaneEndpoint: ""
+kubernetesVersion: v${K8S_VERSION} # Do not change, set via packer
+controlPlaneEndpoint: "CONTROL_PLANE_ENDPOINT" # Do not change, set via runtime script
 etcd:
   local:
     extraArgs: []
