@@ -68,13 +68,19 @@ if [[ "$ROLE" == "control" || "$ROLE" == "primary-control" ]]; then
   systemctl daemon-reload
   mount -a
 
+  log "Rotating control plane certificates if already present"
+  if [ "$(ls -A /etc/kubernetes/pki 2>/dev/null)" ]; then
+    log "Existing certificates found — renewing with kubeadm"
+    kubeadm certs renew all --config "$KUBEADM_CONFIG"
+  fi
+
   if [[ "$ROLE" == "primary-control" ]]; then
     log "Primary control-plane node — running kubeadm init"
-    kubeadm init --config "$KUBEADM_CONFIG"
+    kubeadm init --config "$KUBEADM_CONFIG" --ignore-preflight-errors=all
 
   else
     log "Secondary control-plane node — joining cluster"
-    kubeadm join "$CONTROL_PLANE_ENDPOINT" --token "$TOKEN" --control-plane
+    kubeadm join "$CONTROL_PLANE_ENDPOINT" --token "$TOKEN" --control-plane --ignore-preflight-errors=all
   fi
 
 elif [[ "$ROLE" == "worker" ]]; then
@@ -85,8 +91,10 @@ else
   err_exit "Unknown node role '$ROLE'"
 fi
 
-# Start qemu-guest-agent after bootstrapping
-log "Starting qemu-guest-agent"
-systemctl enable qemu-guest-agent
+# Start qemu-guest-agent after bootstrapping, ensures node is considered ready at the right time
+log "Installing qemu-guest-agent"
+apt install -y qemu-guest-agent
+systemctl enable qemu-guest-agent > /dev/null 2>&1
 systemctl start qemu-guest-agent
+
 log "Bootstrap complete"

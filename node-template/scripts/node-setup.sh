@@ -48,8 +48,7 @@ apt install -y \
   lsscsi \
   sg3-utils \
   multipath-tools \
-  scsitools \
-  qemu-guest-agent
+  scsitools
 
 log "Write multipath config"
 cat >/etc/multipath.conf <<EOF
