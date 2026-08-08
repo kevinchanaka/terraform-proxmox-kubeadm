@@ -3,35 +3,40 @@ set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # Creates a persistent disk volume on a Proxmox host.
+# Runs on the Proxmox host — use pve-run.sh to invoke from elsewhere.
 #
 # The disk is allocated under a synthetic VMID (999) so that Proxmox won't
 # auto-delete it when the real control-plane VM is destroyed.  Proxmox only
 # purges disks whose volume name matches the destroyed VM's ID.
 #
 # Usage:
-#   ./create-persistent-disk.sh <proxmox-host> <storage> <volume-name> <size-in-GB>
+#   ./pve-run.sh create-persistent-disk.sh <storage> <volume-name> <size-in-GB>
 #
 # Example:
-#   ./create-persistent-disk.sh pve local-lvm vm-999-k8s-persist 10
+#   ./pve-run.sh create-persistent-disk.sh local-lvm vm-999-k8s-persist 10
 #
 # After running, add this to infra/infra.auto.tfvars:
 #   persist_disk_volume_id = "<storage>:<volume-name>"
 # ---------------------------------------------------------------------------
 
-PROXMOX_HOST="${1:?Missing proxmox host}"
-STORAGE="${2:?Missing storage name (e.g. local-lvm)}"
-VOLUME_NAME="${3:?Missing volume name (e.g. vm-999-k8s-persist)}"
-SIZE_GB="${4:?Missing size in GB}"
+if [[ $# -ne 3 ]]; then
+    echo "Usage: $0 <storage> <volume-name> <size-in-GB>"
+    exit 1
+fi
+
+STORAGE="$1"
+VOLUME_NAME="$2"
+SIZE_GB="$3"
 
 VOLUME_ID="${STORAGE}:${VOLUME_NAME}"
 
-echo "==> Checking if ${VOLUME_ID} already exists on ${PROXMOX_HOST}..."
+echo "==> Checking if ${VOLUME_ID} already exists..."
 
-if ssh "${PROXMOX_HOST}" "pvesm list ${STORAGE} 2>/dev/null" | grep -qF "${VOLUME_NAME}"; then
+if pvesm list "${STORAGE}" 2>/dev/null | grep -qF "${VOLUME_NAME}"; then
   echo "    Volume ${VOLUME_ID} already exists — nothing to do."
 else
   echo "    Allocating ${VOLUME_ID} (${SIZE_GB}G)..."
-  ssh "${PROXMOX_HOST}" "pvesm alloc ${STORAGE} 999 ${VOLUME_NAME} ${SIZE_GB}G"
+  pvesm alloc "${STORAGE}" 999 "${VOLUME_NAME}" "${SIZE_GB}G"
   echo "    Created ${VOLUME_ID}"
 fi
 

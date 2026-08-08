@@ -1,8 +1,8 @@
 #!/bin/bash
-# Run this script on a proxmox node to create a VM template from a cloud-init image
+# Creates a VM template from a cloud-init image.
+# Runs on the Proxmox host — use pve-run.sh to invoke from elsewhere.
 # Docs: pve.proxmox.com/wiki/Cloud-Init_Support
 # Ubuntu ISOs: https://cloud-images.ubuntu.com/
-# Use nano to paste the file contents and save
 
 set -euo pipefail
 

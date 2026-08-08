@@ -3,7 +3,6 @@ set -euo pipefail
 
 PERSIST_DISK="/dev/sdb"
 MOUNT_POINT="/var/lib/k8s-state"
-BOOTSTRAP_TOKEN_FILE="/root/bootstrap-token"
 KUBEADM_CONFIG="/root/kubeadm-config.yaml"
 
 log() { echo "[node-runtime] $1"; }
@@ -13,20 +12,34 @@ if [[ "$UID" -ne 0 ]]; then
   err_exit "Must be run as root"
 fi
 
-NODE_CONFIG=$(cat /sys/class/dmi/id/product_name 2>/dev/null)
-log "Node config specified in /sys/class/dmi/id/product_name: $NODE_CONFIG"
+# SMBIOS fields (set by Terraform via the Proxmox provider):
+#   product_name  = node role: primary-control | control | worker
+#   product_family = "<endpoint> <mode> <bootstrap-token>"
+#     endpoint: IP or hostname (blank for single mode)
+#     mode:     high-availability | single
+#     token:    kubeadm bootstrap token (abcdef.0123456789abcdef)
+ROLE=$(cat /sys/class/dmi/id/product_name 2>/dev/null)
+FAMILY=$(cat /sys/class/dmi/id/product_family 2>/dev/null)
+read -r CONTROL_PLANE_ENDPOINT CLUSTER_MODE BOOTSTRAP_TOKEN <<< "$FAMILY"
+log "SMBIOS — role: $ROLE, endpoint: $CONTROL_PLANE_ENDPOINT, mode: $CLUSTER_MODE"
 
-read -r CONTROL_PLANE_ENDPOINT ROLE <<< "$NODE_CONFIG"
-log "Parsed control plane endpoint: $CONTROL_PLANE_ENDPOINT"
-log "Parsed node role: $ROLE"
-
-if [[ ! -f "$BOOTSTRAP_TOKEN_FILE" ]]; then
-  err_exit "Bootstrap token file $BOOTSTRAP_TOKEN_FILE not found"
+if [[ -z "$BOOTSTRAP_TOKEN" ]]; then
+  err_exit "Bootstrap token missing from SMBIOS product_family"
 fi
-BOOTSTRAP_TOKEN=$(cat "$BOOTSTRAP_TOKEN_FILE")
 
-log "Adding control plane endpoint and bootstrap token to kubeadm config"
-sed -i "s|CONTROL_PLANE_ENDPOINT|$CONTROL_PLANE_ENDPOINT|" "$KUBEADM_CONFIG"
+# Apply kubeadm config substitutions
+if [[ "$CLUSTER_MODE" == "high-availability" ]]; then
+  if [[ -z "$CONTROL_PLANE_ENDPOINT" ]]; then
+    err_exit "Control plane endpoint required for high-availability mode"
+  fi
+  log "HA mode — writing control plane endpoint to kubeadm config"
+  sed -i "s|CONTROL_PLANE_ENDPOINT|$CONTROL_PLANE_ENDPOINT|" "$KUBEADM_CONFIG"
+elif [[ "$CLUSTER_MODE" == "single" ]]; then
+  log "Single mode — clearing controlPlaneEndpoint"
+  sed -i "s|CONTROL_PLANE_ENDPOINT||" "$KUBEADM_CONFIG"
+else
+  err_exit "Invalid cluster mode '$CLUSTER_MODE' (expected: high-availability or single)"
+fi
 sed -i "s|BOOTSTRAP_TOKEN|$BOOTSTRAP_TOKEN|" "$KUBEADM_CONFIG"
 
 # Setup control plane
@@ -54,6 +67,7 @@ if [[ "$ROLE" == "control" || "$ROLE" == "primary-control" ]]; then
   DISK_UUID=$(blkid -o value -s UUID "$PERSIST_DISK")
   if ! grep -q "$DISK_UUID" /etc/fstab; then
     echo "UUID=$DISK_UUID $MOUNT_POINT ext4 defaults 0 2" >> /etc/fstab
+    systemctl daemon-reload
     mount "$MOUNT_POINT"
   fi
   # Create subdirectories ON the disk (must happen after mount)
@@ -80,12 +94,12 @@ if [[ "$ROLE" == "control" || "$ROLE" == "primary-control" ]]; then
 
   else
     log "Secondary control-plane node — joining cluster"
-    kubeadm join "$CONTROL_PLANE_ENDPOINT" --token "$TOKEN" --control-plane --ignore-preflight-errors=all
+    kubeadm join "$CONTROL_PLANE_ENDPOINT:6443" --token "$BOOTSTRAP_TOKEN" --control-plane --ignore-preflight-errors=all --discovery-token-unsafe-skip-ca-verification
   fi
 
 elif [[ "$ROLE" == "worker" ]]; then
   log "Worker node — joining cluster"
-  kubeadm join "$CONTROL_PLANE_ENDPOINT" --token "$TOKEN"
+  kubeadm join "$CONTROL_PLANE_ENDPOINT:6443" --token "$BOOTSTRAP_TOKEN" --discovery-token-unsafe-skip-ca-verification
 
 else
   err_exit "Unknown node role '$ROLE'"

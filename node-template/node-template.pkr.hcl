@@ -51,12 +51,6 @@ variable "cni_version" {
   description = "CNI plugins version to install"
 }
 
-variable "bootstrap_token" {
-  type        = string
-  sensitive   = true
-  description = "Bootstrap token for kubeadm join (set via PKR_VAR_bootstrap_token)"
-}
-
 source "proxmox-clone" "template" {
   clone_vm_id              = var.vm_template_source_id
   vm_id                    = var.vm_template_id
@@ -75,13 +69,6 @@ source "proxmox-clone" "template" {
   scsi_controller         = "virtio-scsi-pci"
   cloud_init              = true
   cloud_init_storage_pool = "local-lvm"
-
-  # disks {
-  #   disk_size    = "10G"
-  #   format       = "raw"
-  #   storage_pool = "local-lvm"
-  #   type         = "scsi"
-  # }
 
   full_clone = true
   task_timeout = "5m"
@@ -113,12 +100,12 @@ build {
   ]
 
   provisioner "file" {
-    source = "scripts/node-setup.sh"
+    source = "config/node-setup.sh"
     destination = "/tmp/node-setup.sh"
   }
 
   provisioner "file" {
-    source = "scripts/node-runtime.sh"
+    source = "config/node-runtime.sh"
     destination = "/tmp/node-runtime.sh"
   }
 
@@ -131,7 +118,7 @@ build {
     environment_vars = [
       "K8S_VERSION=${var.k8s_version}",
       "CNI_VERSION=${var.cni_version}",
-      "KUBEADM_CONFIG_B64=${base64encode(templatefile("kubeadm-config.yaml", { K8S_VERSION = var.k8s_version }))}",
+      "KUBEADM_CONFIG_B64=${base64encode(templatefile("config/kubeadm-config.yaml", { K8S_VERSION = var.k8s_version }))}",
     ]
     inline = [
       "echo \"$KUBEADM_CONFIG_B64\" | base64 -d > /root/kubeadm-config.yaml",
