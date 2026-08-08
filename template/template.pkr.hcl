@@ -100,18 +100,18 @@ build {
   ]
 
   provisioner "file" {
-    source = "config/node-setup.sh"
-    destination = "/tmp/node-setup.sh"
+    source = "config/build.sh"
+    destination = "/tmp/build.sh"
   }
 
   provisioner "file" {
-    source = "config/node-runtime.sh"
-    destination = "/tmp/node-runtime.sh"
+    source = "config/runtime.sh"
+    destination = "/tmp/runtime.sh"
   }
 
   provisioner "file" {
-    source = "config/99-node-runtime.cfg"
-    destination = "/tmp/99-node-runtime.cfg"
+    source = "config/99-runtime.cfg"
+    destination = "/tmp/99-runtime.cfg"
   }
 
   provisioner "shell" {
@@ -122,11 +122,11 @@ build {
     ]
     inline = [
       "echo \"$KUBEADM_CONFIG_B64\" | base64 -d > /root/kubeadm-config.yaml",
-      "mv /tmp/node-setup.sh /root/",
-      "mv /tmp/node-runtime.sh /root/",
+      "mv /tmp/build.sh /root/",
+      "mv /tmp/runtime.sh /root/",
       "mkdir -p /etc/cloud/cloud.cfg.d",
-      "mv /tmp/99-node-runtime.cfg /etc/cloud/cloud.cfg.d",
-      "cd /root && bash node-setup.sh",
+      "mv /tmp/99-runtime.cfg /etc/cloud/cloud.cfg.d",
+      "cd /root && bash build.sh",
     ]
     execute_command = "sudo -E /bin/bash -c '{{ .Vars }} {{ .Path }}'"
   }

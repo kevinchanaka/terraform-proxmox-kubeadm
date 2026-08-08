@@ -1,8 +1,9 @@
 #!/bin/bash
 # Creates a VM template from a cloud-init image.
-# Runs on the Proxmox host — use pve-run.sh to invoke from elsewhere.
+# Runs on the Proxmox host — use pve-run.sh SSH to proxmox node and invoke.
 # Docs: pve.proxmox.com/wiki/Cloud-Init_Support
 # Ubuntu ISOs: https://cloud-images.ubuntu.com/
+# https://cloud-images.ubuntu.com/RELEASE/current/RELEASE-server-cloudimg-amd64.img
 
 set -euo pipefail
 
@@ -29,6 +30,7 @@ else
 fi
 
 qm create $VMID \
+    --name "$TEMPLATE_NAME" \
     --cores 2 \
     --memory 2048 \
     --net0 virtio,bridge=vmbr0 \
