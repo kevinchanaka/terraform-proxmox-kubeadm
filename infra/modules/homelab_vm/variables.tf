@@ -8,26 +8,23 @@ variable "id" {
   description = "VM ID of the new VM to create"
 }
 
-variable "clone_id" {
+variable "template_id" {
   type        = number
   description = "VM ID of the template to clone from"
 }
 
 variable "cpu_cores" {
   type        = number
-  default     = 2
   description = "Number of CPU cores to assign to the VM"
 }
 
 variable "memory" {
   type        = number
-  default     = 2048
   description = "Memory in MiB to assign to the VM"
 }
 
 variable "disk_size" {
   type        = number
-  default     = 15
   description = "Size of the primary disk (scsi0) in GiB"
 }
 
@@ -36,6 +33,7 @@ variable "additional_disks" {
     interface    = string
     size         = number
     datastore_id = optional(string, "local-lvm")
+    path_in_datastore = optional(string)
     file_id      = optional(string)
   }))
   default     = []
@@ -70,7 +68,7 @@ variable "gateway" {
 variable "username" {
   type        = string
   default     = null
-  description = "Username for the initial user account. No user_account block is created when null."
+  description = "Username for the initial user account, defaults to the default user of the template (e.g. ubuntu)"
 }
 
 variable "pve_node" {
@@ -84,7 +82,7 @@ variable "ssh_public_key_file" {
 }
 
 variable "qemu_agent_enabled" {
-  type    = bool
-  default = true
+  type        = bool
+  default     = true
   description = "Whether to enable the QEMU guest agent. This is required for Proxmox to consider the VM 'ready' and to allow for clean shutdowns."
 }

@@ -9,65 +9,57 @@ variable "proxmox_endpoint" {
   description = "Proxmox VE API endpoint, e.g. https://pve.example.com:8006/"
 }
 
-variable "pve_node" {
-  type    = string
-  default = "pve"
-}
-
-variable "ssh_public_key_file" {
-  type    = string
-  default = "~/.ssh/id_rsa.pub"
-}
-
-variable "control_plane_vm_id" {
-  type    = number
-  default = 100
-}
-
-variable "control_plane_name" {
-  type    = string
-  default = "k8s-cp-1"
-}
-
-variable "control_plane_ip" {
+variable "control_plane_endpoint" {
   type        = string
-  description = "Static IP in CIDR notation, e.g. 192.168.50.30/24"
+  default     = null
+  description = "DNS name (or IP) that can be used to access all the control plane nodes. Required for high-availability."
 }
 
-variable "control_plane_memory" {
-  type    = number
-  default = 4096
-}
-
-variable "control_plane_cores" {
-  type    = number
-  default = 2
-}
-
-variable "clone_template_id" {
+variable "control_plane_template_id" {
   type        = number
-  default     = 902
-  description = "VM template ID created by Packer"
+  description = "Default VM template ID for control plane. Used when a node does not specify its own template_id."
 }
 
-variable "node_role" {
-  type        = string
-  default     = "control-plane-primary"
-  description = "Node role set in SMBIOS product field. 'control-plane-primary' runs kubeadm init, 'control-plane' runs kubeadm join --control-plane, 'worker' runs kubeadm join."
+variable "worker_template_id" {
+  type        = number
+  description = "Default VM template ID for worker nodes. Used when a node does not specify its own template_id."
+}
+
+
+variable "control_plane_nodes" {
+  type = list(object({
+    name       = string
+    id         = number
+    ip_address = string
+    memory     = number
+    cpu_cores  = number
+    disk_size  = number
+    template_id = optional(number)
+    additional_disks = optional(list(object({
+      interface    = string
+      size         = optional(number)
+      datastore_id = optional(string, "local-lvm")
+      path_in_datastore = optional(string)
+    })), [])
+  }))
+  description = "Control plane node definitions. The first entry runs kubeadm init (primary-control); the rest join as secondary control-plane nodes."
 
   validation {
-    condition     = contains(["control-plane-primary", "control-plane", "worker"], var.node_role)
-    error_message = "node_role must be one of: control-plane-primary, control-plane, worker"
+    condition     = length(var.control_plane_nodes) >= 1
+    error_message = "At least one control plane node is required."
   }
 }
 
-variable "persist_disk_device" {
-  type        = string
-  default     = "/dev/sdb"
-  description = "Guest device path for the persistent etcd/PKI disk (maps to scsi1)"
-}
-
-variable "persist_disk_volume_id" {
-  type        = string
-  description = "Proxmox volume ID for the persistent etcd/PKI disk (e.g. 'local-lvm:vm-999-k8s-persist'). Create once with scripts/create-persistent-disk.sh, then set here. The disk lives independently of the VM — it survives terraform destroy and re-attaches on the next apply. Use a VMID in the volume name that differs from the actual control-plane VM to prevent Proxmox from auto-deleting it."
+variable "worker_nodes" {
+  type = list(object({
+    name       = string
+    id         = number
+    ip_address = string
+    memory     = number
+    cpu_cores  = number
+    disk_size  = number
+    template_id = optional(number)
+  }))
+  default     = []
+  description = "Worker node definitions"
 }

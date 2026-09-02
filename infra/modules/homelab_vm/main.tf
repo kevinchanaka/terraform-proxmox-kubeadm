@@ -4,7 +4,7 @@ resource "proxmox_virtual_environment_vm" "this" {
   node_name = var.pve_node
 
   clone {
-    vm_id = var.clone_id
+    vm_id = var.template_id
     full  = true
   }
 
@@ -43,6 +43,7 @@ resource "proxmox_virtual_environment_vm" "this" {
       interface    = disk.value.interface
       size         = disk.value.size
       datastore_id = disk.value.datastore_id
+      path_in_datastore = disk.value.path_in_datastore
       file_id      = disk.value.file_id
     }
   }
@@ -71,12 +72,9 @@ resource "proxmox_virtual_environment_vm" "this" {
       }
     }
 
-    dynamic "user_account" {
-      for_each = var.username != null ? [var.username] : []
-      content {
-        username = user_account.value
-        keys     = [trimspace(file(var.ssh_public_key_file))]
-      }
+    user_account {
+      username = var.username != null ? var.username : null
+      keys     = [trimspace(file(var.ssh_public_key_file))]
     }
 
     upgrade = false

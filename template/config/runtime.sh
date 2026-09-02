@@ -82,14 +82,13 @@ if [[ "$ROLE" == "control" || "$ROLE" == "primary-control" ]]; then
   systemctl daemon-reload
   mount -a
 
-  log "Rotating control plane certificates if already present"
-  if [ "$(ls -A /etc/kubernetes/pki 2>/dev/null)" ]; then
-    log "Existing certificates found — renewing with kubeadm"
-    kubeadm certs renew all --config "$KUBEADM_CONFIG"
-  fi
-
   if [[ "$ROLE" == "primary-control" ]]; then
-    log "Primary control-plane node — running kubeadm init"
+    log "Primary control-plane node detected"
+    if [ "$(ls -A /etc/kubernetes/pki 2>/dev/null)" ]; then
+      log "Existing certificates found — renewing with kubeadm"
+      kubeadm certs renew all --config "$KUBEADM_CONFIG"
+    fi
+    log "Running kubeadm init to initialize the cluster"
     kubeadm init --config "$KUBEADM_CONFIG" --ignore-preflight-errors=all
 
   else

@@ -95,7 +95,7 @@ https://pkgs.k8s.io/core:/stable:/v${K8S_MINOR}/deb/ /
 EOF
 
 apt update
-apt install -y kubelet kubeadm kubectl
+apt install -y kubeadm=${K8S_VERSION}* kubelet=${K8S_VERSION}* kubectl=${K8S_VERSION}*
 apt-mark hold kubelet kubeadm kubectl
 
 log "Enable services"

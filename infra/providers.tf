@@ -8,8 +8,8 @@ terraform {
 }
 
 provider "proxmox" {
-  endpoint  = var.proxmox_endpoint
-  insecure  = true
+  endpoint = var.proxmox_endpoint
+  insecure = true
 
   # SSH is required for file uploads / snippet management. If you only clone
   # templates and configure cloud-init, SSH can be left unset.
