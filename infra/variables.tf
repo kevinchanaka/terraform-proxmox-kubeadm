@@ -9,6 +9,12 @@ variable "proxmox_endpoint" {
   description = "Proxmox VE API endpoint, e.g. https://pve.example.com:8006/"
 }
 
+variable "pve_node" {
+  type        = string
+  default     = "pve"
+  description = "Proxmox node to create the VMs on."
+}
+
 variable "control_plane_endpoint" {
   type        = string
   default     = null
@@ -25,22 +31,26 @@ variable "worker_template_id" {
   description = "Default VM template ID for worker nodes. Used when a node does not specify its own template_id."
 }
 
+variable "control_plane_data_vm_name" {
+  type        = string
+  description = "Name of the data VM to create"
+}
+
+variable "control_plane_data_vm_id" {
+  type        = number
+  description = "VM ID of the new data VM to create"
+}
 
 variable "control_plane_nodes" {
   type = list(object({
-    name       = string
-    id         = number
-    ip_address = string
-    memory     = number
-    cpu_cores  = number
-    disk_size  = number
-    template_id = optional(number)
-    additional_disks = optional(list(object({
-      interface    = string
-      size         = optional(number)
-      datastore_id = optional(string, "local-lvm")
-      path_in_datastore = optional(string)
-    })), [])
+    name                 = string
+    id                   = number
+    ip_address           = string
+    memory               = number
+    cpu_cores            = number
+    disk_size            = number
+    persistent_disk_size = optional(number, 10)
+    template_id          = optional(number)
   }))
   description = "Control plane node definitions. The first entry runs kubeadm init (primary-control); the rest join as secondary control-plane nodes."
 
@@ -52,12 +62,12 @@ variable "control_plane_nodes" {
 
 variable "worker_nodes" {
   type = list(object({
-    name       = string
-    id         = number
-    ip_address = string
-    memory     = number
-    cpu_cores  = number
-    disk_size  = number
+    name        = string
+    id          = number
+    ip_address  = string
+    memory      = number
+    cpu_cores   = number
+    disk_size   = number
     template_id = optional(number)
   }))
   default     = []

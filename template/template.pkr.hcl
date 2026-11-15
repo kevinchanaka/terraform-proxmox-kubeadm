@@ -109,11 +109,6 @@ build {
     destination = "/tmp/runtime.sh"
   }
 
-  provisioner "file" {
-    source = "config/99-runtime.cfg"
-    destination = "/tmp/99-runtime.cfg"
-  }
-
   provisioner "shell" {
     environment_vars = [
       "K8S_VERSION=${var.k8s_version}",
@@ -123,9 +118,8 @@ build {
     inline = [
       "echo \"$KUBEADM_CONFIG_B64\" | base64 -d > /root/kubeadm-config.yaml",
       "mv /tmp/build.sh /root/",
-      "mv /tmp/runtime.sh /root/",
-      "mkdir -p /etc/cloud/cloud.cfg.d",
-      "mv /tmp/99-runtime.cfg /etc/cloud/cloud.cfg.d",
+      "mv /tmp/runtime.sh /usr/local/sbin/runtime.sh",
+      "chmod 0755 /usr/local/sbin/runtime.sh",
       "cd /root && bash build.sh",
     ]
     execute_command = "sudo -E /bin/bash -c '{{ .Vars }} {{ .Path }}'"

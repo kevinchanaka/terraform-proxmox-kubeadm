@@ -98,6 +98,32 @@ apt update
 apt install -y kubeadm=${K8S_VERSION}* kubelet=${K8S_VERSION}* kubectl=${K8S_VERSION}*
 apt-mark hold kubelet kubeadm kubectl
 
+log "Installing kubeadm bootstrap unit"
+cat > /etc/systemd/system/kubeadm-bootstrap.service <<'EOF'
+[Unit]
+Description=Kubeadm node bootstrap (init/join)
+# cloud-init sets the hostname from the Proxmox VM name (init stage), and
+# kubeadm registers the node under the current hostname. Order after cloud-final
+# so bootstrap can't run before cloud-init has applied it; no Requires= so a
+# cloud-init failure doesn't block bootstrap.
+After=network-online.target cloud-final.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/runtime.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
+chmod 0644 /etc/systemd/system/kubeadm-bootstrap.service
+systemctl daemon-reload
+# enable only, do not start, requires data passed at runtime
+systemctl enable kubeadm-bootstrap.service
+
 log "Enable services"
 systemctl enable multipathd
 systemctl enable open-iscsi

@@ -13,6 +13,15 @@ check "ha_requires_endpoint" {
   }
 }
 
+module "control_plane_data" {
+  source = "./modules/data_vm"
+
+  name     = var.control_plane_data_vm_name
+  id       = var.control_plane_data_vm_id
+  disks    = [for n in var.control_plane_nodes : { size = n.persistent_disk_size }]
+  pve_node = var.pve_node
+}
+
 module "control_plane_primary" {
   source = "./modules/homelab_vm"
 
@@ -23,33 +32,57 @@ module "control_plane_primary" {
   memory      = var.control_plane_nodes[0].memory
   cpu_cores   = var.control_plane_nodes[0].cpu_cores
   disk_size   = var.control_plane_nodes[0].disk_size
+  pve_node    = var.pve_node
 
   smbios = {
     product = "primary-control"
     family  = local.cluster_config
   }
 
-  additional_disks = var.control_plane_nodes[0].additional_disks
+  # Disk 0 of the data VM holds this node's etcd + PKI data.
+  additional_disks = [
+    {
+      interface         = "scsi1"
+      datastore_id      = module.control_plane_data.disks[0].datastore_id
+      path_in_datastore = module.control_plane_data.disks[0].path_in_datastore
+      file_format       = module.control_plane_data.disks[0].file_format
+      size              = module.control_plane_data.disks[0].size
+    }
+  ]
 }
 
 module "control_plane" {
-  source   = "./modules/homelab_vm"
-  for_each = { for n in slice(var.control_plane_nodes, 1, length(var.control_plane_nodes)) : n.name => n }
+  source = "./modules/homelab_vm"
+  # disk_index maps each secondary node to its disk in the data VM
+  # (index 0 belongs to the primary).
+  for_each = {
+    for i, n in slice(var.control_plane_nodes, 1, length(var.control_plane_nodes)) :
+    n.name => merge(n, { disk_index = i + 1 })
+  }
 
   id          = each.value.id
   name        = each.key
-  template_id = each.value.template_id != null ? each.value.template_id : var.worker_template_id
+  template_id = each.value.template_id != null ? each.value.template_id : var.control_plane_template_id
   ip_address  = each.value.ip_address
   memory      = each.value.memory
   cpu_cores   = each.value.cpu_cores
   disk_size   = each.value.disk_size
+  pve_node    = var.pve_node
 
   smbios = {
     product = "control"
     family  = local.cluster_config
   }
 
-  additional_disks = each.value.additional_disks
+  additional_disks = [
+    {
+      interface         = "scsi1"
+      datastore_id      = module.control_plane_data.disks[each.value.disk_index].datastore_id
+      path_in_datastore = module.control_plane_data.disks[each.value.disk_index].path_in_datastore
+      file_format       = module.control_plane_data.disks[each.value.disk_index].file_format
+      size              = module.control_plane_data.disks[each.value.disk_index].size
+    }
+  ]
 
   depends_on = [module.control_plane_primary]
 }
@@ -65,6 +98,7 @@ module "worker" {
   memory      = each.value.memory
   cpu_cores   = each.value.cpu_cores
   disk_size   = each.value.disk_size
+  pve_node    = var.pve_node
 
   smbios = {
     product = "worker"

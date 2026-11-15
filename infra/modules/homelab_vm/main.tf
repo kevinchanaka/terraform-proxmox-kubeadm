@@ -40,11 +40,12 @@ resource "proxmox_virtual_environment_vm" "this" {
   dynamic "disk" {
     for_each = var.additional_disks
     content {
-      interface    = disk.value.interface
-      size         = disk.value.size
-      datastore_id = disk.value.datastore_id
+      interface         = disk.value.interface
+      size              = disk.value.size
+      datastore_id      = disk.value.datastore_id
       path_in_datastore = disk.value.path_in_datastore
-      file_id      = disk.value.file_id
+      file_format       = disk.value.file_format
+      file_id           = disk.value.file_id
     }
   }
 

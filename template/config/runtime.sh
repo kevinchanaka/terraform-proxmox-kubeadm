@@ -12,6 +12,12 @@ if [[ "$UID" -ne 0 ]]; then
   err_exit "Must be run as root"
 fi
 
+# Idempotency guard, bootstrap.done is written at the end of this script
+if [[ -f /var/lib/kubeadm/bootstrap.done ]]; then
+  log "Bootstrap already completed (marker present), exiting"
+  exit 0
+fi
+
 # SMBIOS fields (set by Terraform via the Proxmox provider):
 #   product_name  = node role: primary-control | control | worker
 #   product_family = "<endpoint> <mode> <bootstrap-token>"
@@ -111,3 +117,5 @@ systemctl enable qemu-guest-agent > /dev/null 2>&1
 systemctl start qemu-guest-agent
 
 log "Bootstrap complete"
+mkdir -p /var/lib/kubeadm
+touch /var/lib/kubeadm/bootstrap.done

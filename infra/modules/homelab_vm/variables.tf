@@ -30,14 +30,15 @@ variable "disk_size" {
 
 variable "additional_disks" {
   type = list(object({
-    interface    = string
-    size         = number
-    datastore_id = optional(string, "local-lvm")
+    interface         = string
+    size              = optional(number)
+    datastore_id      = optional(string, "local-lvm")
     path_in_datastore = optional(string)
-    file_id      = optional(string)
+    file_format       = optional(string)
+    file_id           = optional(string)
   }))
   default     = []
-  description = "Additional disks to attach (scsi1+). Use file_id for pre-existing persistent volumes."
+  description = "Additional disks to attach (scsi1+). Set path_in_datastore (with datastore_id/file_format/size) to attach an existing volume owned by another VM."
 }
 
 variable "smbios" {
