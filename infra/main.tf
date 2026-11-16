@@ -13,26 +13,40 @@ check "ha_requires_endpoint" {
   }
 }
 
+check "unique_vm_ids" {
+  assert {
+    condition = length(distinct(concat(
+      [for n in var.control_plane_nodes : n.id],
+      [for n in var.worker_nodes : n.id],
+      [var.control_plane_data_vm.id],
+    ))) == length(var.control_plane_nodes) + length(var.worker_nodes) + 1
+    error_message = "VM IDs must be unique across control-plane nodes, worker nodes, and the data VM."
+  }
+}
+
 module "control_plane_data" {
   source = "./modules/data_vm"
 
-  name     = var.control_plane_data_vm_name
-  id       = var.control_plane_data_vm_id
-  disks    = [for n in var.control_plane_nodes : { size = n.persistent_disk_size }]
-  pve_node = var.pve_node
+  name         = var.control_plane_data_vm.name
+  id           = var.control_plane_data_vm.id
+  disks        = [for n in var.control_plane_nodes : { size = n.persistent_disk_size }]
+  pve_node     = var.pve_node
+  datastore_id = var.datastore_id
 }
 
 module "control_plane_primary" {
   source = "./modules/homelab_vm"
 
-  id          = var.control_plane_nodes[0].id
-  name        = var.control_plane_nodes[0].name
-  template_id = var.control_plane_nodes[0].template_id != null ? var.control_plane_nodes[0].template_id : var.control_plane_template_id
-  ip_address  = var.control_plane_nodes[0].ip_address
-  memory      = var.control_plane_nodes[0].memory
-  cpu_cores   = var.control_plane_nodes[0].cpu_cores
-  disk_size   = var.control_plane_nodes[0].disk_size
-  pve_node    = var.pve_node
+  id           = var.control_plane_nodes[0].id
+  name         = var.control_plane_nodes[0].name
+  template_id  = var.control_plane_nodes[0].template_id != null ? var.control_plane_nodes[0].template_id : var.control_plane_template_id
+  ip_address   = var.control_plane_nodes[0].ip_address
+  memory       = var.control_plane_nodes[0].memory
+  cpu_cores    = var.control_plane_nodes[0].cpu_cores
+  disk_size    = var.control_plane_nodes[0].disk_size
+  pve_node     = var.pve_node
+  datastore_id = var.datastore_id
+  gateway      = var.control_plane_nodes[0].gateway
 
   smbios = {
     product = "primary-control"
@@ -52,14 +66,16 @@ module "control_plane" {
     n.name => merge(n, { disk_index = i + 1 })
   }
 
-  id          = each.value.id
-  name        = each.key
-  template_id = each.value.template_id != null ? each.value.template_id : var.control_plane_template_id
-  ip_address  = each.value.ip_address
-  memory      = each.value.memory
-  cpu_cores   = each.value.cpu_cores
-  disk_size   = each.value.disk_size
-  pve_node    = var.pve_node
+  id           = each.value.id
+  name         = each.key
+  template_id  = each.value.template_id != null ? each.value.template_id : var.control_plane_template_id
+  ip_address   = each.value.ip_address
+  memory       = each.value.memory
+  cpu_cores    = each.value.cpu_cores
+  disk_size    = each.value.disk_size
+  pve_node     = var.pve_node
+  datastore_id = var.datastore_id
+  gateway      = each.value.gateway
 
   smbios = {
     product = "control"
@@ -75,14 +91,16 @@ module "worker" {
   source   = "./modules/homelab_vm"
   for_each = { for n in var.worker_nodes : n.name => n }
 
-  id          = each.value.id
-  name        = each.key
-  template_id = each.value.template_id != null ? each.value.template_id : var.worker_template_id
-  ip_address  = each.value.ip_address
-  memory      = each.value.memory
-  cpu_cores   = each.value.cpu_cores
-  disk_size   = each.value.disk_size
-  pve_node    = var.pve_node
+  id           = each.value.id
+  name         = each.key
+  template_id  = each.value.template_id != null ? each.value.template_id : var.worker_template_id
+  ip_address   = each.value.ip_address
+  memory       = each.value.memory
+  cpu_cores    = each.value.cpu_cores
+  disk_size    = each.value.disk_size
+  pve_node     = var.pve_node
+  datastore_id = var.datastore_id
+  gateway      = each.value.gateway
 
   smbios = {
     product = "worker"

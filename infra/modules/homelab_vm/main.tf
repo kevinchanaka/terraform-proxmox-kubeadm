@@ -33,7 +33,7 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   disk {
     interface    = "scsi0"
-    datastore_id = "local-lvm"
+    datastore_id = var.datastore_id
     size         = var.disk_size
   }
 
@@ -63,7 +63,7 @@ resource "proxmox_virtual_environment_vm" "this" {
   }
 
   initialization {
-    datastore_id = "local-lvm"
+    datastore_id = var.datastore_id
     interface    = "ide2"
 
     ip_config {

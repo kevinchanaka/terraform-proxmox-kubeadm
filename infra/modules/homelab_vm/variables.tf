@@ -28,6 +28,12 @@ variable "disk_size" {
   description = "Size of the primary disk (scsi0) in GiB"
 }
 
+variable "datastore_id" {
+  type        = string
+  default     = "local-lvm"
+  description = "Datastore for the root disk (scsi0) and the cloud-init drive."
+}
+
 variable "attached_disks" {
   # A subset of the provider's computed disk object (e.g. module.data_vm.disks
   # elements). Extra attributes are discarded by type conversion.

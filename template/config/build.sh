@@ -98,31 +98,29 @@ apt update
 apt install -y kubeadm=${K8S_VERSION}* kubelet=${K8S_VERSION}* kubectl=${K8S_VERSION}*
 apt-mark hold kubelet kubeadm kubectl
 
-log "Installing kubeadm bootstrap unit"
-cat > /etc/systemd/system/kubeadm-bootstrap.service <<'EOF'
+log "Installing node bootstrap unit"
+cat > /etc/systemd/system/node-bootstrap.service <<'EOF'
 [Unit]
-Description=Kubeadm node bootstrap (init/join)
-# cloud-init sets the hostname from the Proxmox VM name (init stage), and
-# kubeadm registers the node under the current hostname. Order after cloud-final
-# so bootstrap can't run before cloud-init has applied it; no Requires= so a
-# cloud-init failure doesn't block bootstrap.
-After=network-online.target cloud-final.service
+Description=Node bootstrap (kubeadm init/join)
+# cloud-init sets the hostname. Ordering after cloud-final cycles (cloud-final is
+# itself After multi-user.target), so use cloud-init's documented ordering.
+After=network-online.target cloud-init.target multi-user.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/local/sbin/runtime.sh
+ExecStart=/root/node-bootstrap.sh
 Restart=on-failure
 RestartSec=30
 
 [Install]
 WantedBy=multi-user.target
 EOF
-chmod 0644 /etc/systemd/system/kubeadm-bootstrap.service
+chmod 0644 /etc/systemd/system/node-bootstrap.service
 systemctl daemon-reload
 # enable only, do not start, requires data passed at runtime
-systemctl enable kubeadm-bootstrap.service
+systemctl enable node-bootstrap.service
 
 log "Enable services"
 systemctl enable multipathd

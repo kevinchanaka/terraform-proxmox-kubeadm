@@ -105,8 +105,8 @@ build {
   }
 
   provisioner "file" {
-    source = "config/runtime.sh"
-    destination = "/tmp/runtime.sh"
+    source = "config/node-bootstrap.sh"
+    destination = "/tmp/node-bootstrap.sh"
   }
 
   provisioner "shell" {
@@ -118,8 +118,8 @@ build {
     inline = [
       "echo \"$KUBEADM_CONFIG_B64\" | base64 -d > /root/kubeadm-config.yaml",
       "mv /tmp/build.sh /root/",
-      "mv /tmp/runtime.sh /usr/local/sbin/runtime.sh",
-      "chmod 0755 /usr/local/sbin/runtime.sh",
+      "mv /tmp/node-bootstrap.sh /root/node-bootstrap.sh",
+      "chmod 0755 /root/node-bootstrap.sh",
       "cd /root && bash build.sh",
     ]
     execute_command = "sudo -E /bin/bash -c '{{ .Vars }} {{ .Path }}'"
