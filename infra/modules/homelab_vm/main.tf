@@ -38,14 +38,14 @@ resource "proxmox_virtual_environment_vm" "this" {
   }
 
   dynamic "disk" {
-    for_each = var.additional_disks
+    for_each = var.attached_disks
     content {
-      interface         = disk.value.interface
-      size              = disk.value.size
+      # scsi0 is the cloned root disk; attach existing disks from scsi1 up.
+      interface         = "scsi${disk.key + 1}"
       datastore_id      = disk.value.datastore_id
       path_in_datastore = disk.value.path_in_datastore
       file_format       = disk.value.file_format
-      file_id           = disk.value.file_id
+      size              = disk.value.size
     }
   }
 

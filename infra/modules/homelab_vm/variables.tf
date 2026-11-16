@@ -28,17 +28,17 @@ variable "disk_size" {
   description = "Size of the primary disk (scsi0) in GiB"
 }
 
-variable "additional_disks" {
+variable "attached_disks" {
+  # A subset of the provider's computed disk object (e.g. module.data_vm.disks
+  # elements). Extra attributes are discarded by type conversion.
   type = list(object({
-    interface         = string
-    size              = optional(number)
-    datastore_id      = optional(string, "local-lvm")
+    datastore_id      = optional(string)
     path_in_datastore = optional(string)
     file_format       = optional(string)
-    file_id           = optional(string)
+    size              = optional(number)
   }))
   default     = []
-  description = "Additional disks to attach (scsi1+). Set path_in_datastore (with datastore_id/file_format/size) to attach an existing volume owned by another VM."
+  description = "Existing disks to attach, e.g. the disk objects from the data VM module. Attached as scsi1, scsi2 onwards in list order."
 }
 
 variable "smbios" {

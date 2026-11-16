@@ -8,12 +8,13 @@ control_plane_data_vm_id   = 110
 
 control_plane_nodes = [
   {
-    name       = "k8s-cp"
-    id         = 100
-    ip_address = "192.168.50.27/24"
-    cpu_cores  = 2
-    memory     = 2048
-    disk_size  = 20
+    name                 = "k8s-cp"
+    id                   = 100
+    ip_address           = "192.168.50.27/24"
+    cpu_cores            = 2
+    memory               = 2048
+    disk_size            = 20
+    persistent_disk_size = 10
   }
 ]
 

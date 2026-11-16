@@ -40,15 +40,7 @@ module "control_plane_primary" {
   }
 
   # Disk 0 of the data VM holds this node's etcd + PKI data.
-  additional_disks = [
-    {
-      interface         = "scsi1"
-      datastore_id      = module.control_plane_data.disks[0].datastore_id
-      path_in_datastore = module.control_plane_data.disks[0].path_in_datastore
-      file_format       = module.control_plane_data.disks[0].file_format
-      size              = module.control_plane_data.disks[0].size
-    }
-  ]
+  attached_disks = [module.control_plane_data.disks[0]]
 }
 
 module "control_plane" {
@@ -74,15 +66,7 @@ module "control_plane" {
     family  = local.cluster_config
   }
 
-  additional_disks = [
-    {
-      interface         = "scsi1"
-      datastore_id      = module.control_plane_data.disks[each.value.disk_index].datastore_id
-      path_in_datastore = module.control_plane_data.disks[each.value.disk_index].path_in_datastore
-      file_format       = module.control_plane_data.disks[each.value.disk_index].file_format
-      size              = module.control_plane_data.disks[each.value.disk_index].size
-    }
-  ]
+  attached_disks = [module.control_plane_data.disks[each.value.disk_index]]
 
   depends_on = [module.control_plane_primary]
 }
