@@ -3,3 +3,4 @@ infra/.terraform
 infra/.terraform*
 infra/*.tfstate
 infra/*.tfstate*
+**/*kubeconfig.yaml

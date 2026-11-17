@@ -175,8 +175,6 @@ if [[ "$ROLE" == "control" || "$ROLE" == "primary-control" ]]; then
 fi
 
 # Start qemu-guest-agent after bootstrapping, ensures node is considered ready at the right time.
-# A failure here still aborts this run (so the unit retries), but KUBEADM_MARKER
-# prevents the retry from re-running init/join.
 log "Installing qemu-guest-agent"
 apt install -y qemu-guest-agent
 systemctl enable qemu-guest-agent > /dev/null 2>&1
